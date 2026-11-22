@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from tillpoint import db, reports
 from tillpoint.api import App
-from tillpoint.catalog import OutOfStock
+from tillpoint.catalog import Catalog, OutOfStock
 
 
 class OrderDeskTest(unittest.TestCase):
@@ -30,6 +30,23 @@ class OrderDeskTest(unittest.TestCase):
         with self.assertRaises(OutOfStock):
             self.app.orders.create("ana", [("TEE", 4)])
         self.assertEqual(self.app.catalog.get_product("TEE").stock, 3)
+    def test_stale_catalog_cache_does_not_oversell(self):
+        worker1 = Catalog(self.conn)
+        worker2 = Catalog(self.conn)
+
+        worker1.get_product("MUG")
+        worker2.get_product("MUG")
+
+        worker1.reserve("MUG", 7)
+
+        with self.assertRaises(OutOfStock):
+            worker2.reserve("MUG", 7)
+
+        stock = self.conn.execute(
+            "SELECT stock FROM products WHERE sku = 'MUG'"
+        ).fetchone()["stock"]
+
+        self.assertEqual(stock, 3)
 
     def test_payment_marks_order_paid(self):
         order = self.app.orders.create("ana", [("MUG", 1)])
