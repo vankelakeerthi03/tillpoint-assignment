@@ -36,6 +36,20 @@ class OrderDeskTest(unittest.TestCase):
         status, payload = self.app.handle("POST", "/webhooks/payments", {
             "id": "evt_1", "type": "payment.succeeded", "order_id": order["id"], "amount_cents": 1200})
         self.assertEqual((status, payload["status"]), (200, "paid"))
+    def test_duplicate_payment_event_is_ignored(self):
+        order = self.app.orders.create("ana", [("MUG", 1)])
+
+        event = {
+            "id": "evt_duplicate",
+            "type": "payment.succeeded",
+            "order_id": order["id"],
+            "amount_cents": 1200,
+        }
+
+        self.app.payments.handle_event(event)
+        self.app.payments.handle_event(event)
+
+        self.assertEqual(self.app.payments.paid_cents(order["id"]), 1200)
 
     def test_cancel_paid_order_restocks(self):
         order = self.app.orders.create("ana", [("TEE", 2)])

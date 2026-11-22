@@ -19,6 +19,13 @@ class Payments:
             raise PaymentError(f"payment for unknown order {event['order_id']}")
         if order["status"] == "cancelled":
             raise PaymentError(f"order {order['id']} is cancelled")
+        existing = self.conn.execute(
+            "SELECT 1 FROM payments WHERE event_id = ?",
+            (event["id"],),
+        ).fetchone()
+
+        if existing:
+            return order["status"]
         self.conn.execute(
             "INSERT INTO payments (order_id, event_id, amount_cents, received_at) VALUES (?, ?, ?, ?)",
             (order["id"], event["id"], event["amount_cents"], db.to_iso(now or db.utcnow())),
