@@ -1,113 +1,95 @@
 # NOTES
 
-Fill in every field below before you submit. We read this file first: a submission with an empty field is not graded.
-Write in your own words. If you did not fix something, set Status to `not fixed` and say what you found and tried; that still counts.
-Status is one of: `fixed`, `partly fixed`, `not fixed`. Commits: the short hashes of the commits for this item, or `none`.
-
 ## 1. Report
 
-> Finance says that on some days the revenue in the daily report is higher than what the payment provider paid out, and a few orders show more money received than their total.
+**Status:** partly fixed
 
-**Status:** TODO: fill in
+**What I saw:** Duplicate webhook deliveries with the same event ID could be recorded more than once. Also, separate successful payments for the same order could cause the total amount received to exceed the order total.
 
-**What I saw:** TODO: fill in
+**Root cause:** The payment handling logic did not prevent duplicate webhook events from being recorded. It also did not identify or flag amounts received beyond the order total. Provider payout reconciliation is not supported by the current payment data.
 
-**Root cause:** TODO: fill in
+**Fix and why:** Added duplicate event detection so the same webhook event is processed only once. Added overpayment tracking so any amount received beyond the order total is marked as requiring a refund. Provider payout reconciliation remains outside the implemented scope because settlement and fee information is not available.
 
-**Fix and why:** TODO: fill in
+**How I verified it:** Added automated tests for duplicate webhook events and separate successful payments. Verified that duplicate events are ignored and excess payment amounts are flagged for refund.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `9f874a3`, `4a0a1fc`
 
 ## 2. Report
 
-> Products show as sold out, or nearly, while the shelf is full. Staff say it gets worse on days when many customers abandon checkout.
+**Status:** fixed
 
-**Status:** TODO: fill in
+**What I saw:** Cancelling a pending order did not restore the reserved product stock.
 
-**What I saw:** TODO: fill in
+**Root cause:** The cancellation logic released stock only for paid orders and did not handle pending orders.
 
-**Root cause:** TODO: fill in
+**Fix and why:** Updated the cancellation logic to release reserved stock for both pending and paid orders. This ensures that cancelled orders do not leave stock unnecessarily reserved.
 
-**Fix and why:** TODO: fill in
+**How I verified it:** Added a regression test that creates and cancels a pending order, then checks that the reserved stock is restored. The test passes.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `66176ac`
 
 ## 3. Report
 
-> Customers in taxed regions who used a coupon say the tax on their receipt is too high. Receipts without a coupon are right.
+**Status:** fixed
 
-**Status:** TODO: fill in
+**What I saw:** The tax amount was calculated using the original price instead of the price after applying the coupon discount.
 
-**What I saw:** TODO: fill in
+**Root cause:** The tax calculation happened before the coupon discount was applied.
 
-**Root cause:** TODO: fill in
+**Fix and why:** Updated the pricing calculation to apply the coupon discount before calculating tax. This ensures that tax is calculated on the discounted amount.
 
-**Fix and why:** TODO: fill in
+**How I verified it:** Added a regression test to verify that the coupon reduces the taxable amount and produces the expected tax. The test passes.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `e6f6cad`
 
 ## 4. Report
 
-> Our shop in India (UTC+5:30) says sales taken in the morning do not appear in that day's report and turn up under the day before.
+**Status:** fixed
 
-**Status:** TODO: fill in
+**What I saw:** Sales made around midnight in India could appear under the previous day's report.
 
-**What I saw:** TODO: fill in
+**Root cause:** The UTC offset was applied in the wrong direction when calculating the UTC boundaries of a shop-local day.
 
-**Root cause:** TODO: fill in
+**Fix and why:** Updated the day-boundary calculation to subtract the UTC offset when converting local-day boundaries to UTC. This correctly handles shops using UTC+5:30.
 
-**Fix and why:** TODO: fill in
+**How I verified it:** Added a regression test using a payment timestamp of 19:00 UTC, which corresponds to 00:30 the following day in India. Verified that the sale appears in the correct day's report.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `a79da39`
 
 ## 5. Report
 
-> Ever since we started running two server workers, we have sold more units of an item than we had, and its stock went negative.
+**Status:** fixed
 
-**Status:** TODO: fill in
+**What I saw:** Two catalog instances could use stale stock information and both attempt to reserve more units than were available.
 
-**What I saw:** TODO: fill in
+**Root cause:** Stock availability was checked separately from the stock update. This allowed concurrent operations to use outdated stock values.
 
-**Root cause:** TODO: fill in
+**Fix and why:** Replaced the separate check and update with a conditional SQL UPDATE that decreases stock only when sufficient stock is available. This makes the reservation operation atomic and prevents stock from becoming negative.
 
-**Fix and why:** TODO: fill in
+**How I verified it:** Added a regression test using two catalog instances with stale cached stock. After the first instance reserves seven units, the second reservation of seven units fails, and the remaining database stock stays at three.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `4d11668`
 
 ## 6. Open question
 
-> Open question from support, no single right answer: sometimes a customer really does pay twice for one order (two separate payments, not a retry of the same one). Today the system records both and says nothing. Decide what should happen, build the smallest version of your decision, and explain what it costs in `NOTES.md`.
+**My decision:** Record both distinct successful payments, but flag the excess amount as requiring a refund. Ignore repeated deliveries of the same webhook event.
 
-**My decision:** TODO: fill in
+**Why:** Two different successful payment events represent separate payment captures, not necessarily a retry. Keeping both records preserves the payment history, while flagging the excess amount makes the issue visible for follow-up.
 
-**Why:** TODO: fill in
+**What it costs:** The system does not automatically issue refunds. A separate refund process or manual follow-up is required. Until a refund is completed, reports of received payments continue to include the actual captured amounts.
 
-**What it costs:** TODO: fill in
+**What I built:** Added a `refund_required_cents` column to the payments table. The payment handler calculates and records the excess amount for each payment. Also added a database migration so existing databases receive the new column.
 
-**What I built:** TODO: fill in
+**How I verified it:** Added a test that sends two distinct successful payment events for the same order. Verified that both payments are stored, the first payment has no refund amount, and the second payment is flagged for the excess amount. Ran the full test suite successfully.
 
-**How I verified it:** TODO: fill in
-
-**Commits:** TODO: fill in
+**Commits:** `4a0a1fc`, `36d278a`
 
 ## Other things I noticed
 
-Problems outside the reports: what, where, and whether you fixed them. Write `none` if there were none.
-
-TODO: fill in
+Added a database schema migration for the new `refund_required_cents` column to support existing databases. No other unrelated issues were identified.
 
 ## Session logs
 
-Which AI tools you used, and one line per file in `session_logs/`.
+AI tool used: ChatGPT (OpenAI) for understanding the reported issues, discussing implementation choices, debugging, and reviewing test results.
 
-TODO: fill in
+- `README.md` — Contains the assignment-provided instructions for session logs. It is not a conversation export.
