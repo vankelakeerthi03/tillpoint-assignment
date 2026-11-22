@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS payments (
     order_id INTEGER NOT NULL REFERENCES orders(id),
     event_id TEXT NOT NULL,
     amount_cents INTEGER NOT NULL,
+    refund_required_cents INTEGER NOT NULL DEFAULT 0,
     received_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);

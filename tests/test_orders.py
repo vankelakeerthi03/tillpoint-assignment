@@ -125,7 +125,31 @@ class OrderDeskTest(unittest.TestCase):
         self.assertEqual(order["tax_cents"], 78)
         self.assertEqual(order["total_cents"], 1158)
 
+    def test_second_payment_is_flagged_for_refund(self):
+        order = self.app.orders.create("ana", [("MUG", 1)])
 
+        self.app.payments.handle_event({
+            "id": "evt_first",
+            "type": "payment.succeeded",
+            "order_id": order["id"],
+            "amount_cents": 1200,
+        })
+
+        self.app.payments.handle_event({
+            "id": "evt_second",
+            "type": "payment.succeeded",
+            "order_id": order["id"],
+            "amount_cents": 1200,
+        })
+
+        payments = self.conn.execute(
+            "SELECT amount_cents, refund_required_cents FROM payments WHERE order_id = ? ORDER BY id",
+            (order["id"],),
+        ).fetchall()
+
+        self.assertEqual(len(payments), 2)
+        self.assertEqual(payments[0]["refund_required_cents"], 0)
+        self.assertEqual(payments[1]["refund_required_cents"], 1200)
 if __name__ == "__main__":
     unittest.main()
 
