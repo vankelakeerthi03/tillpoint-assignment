@@ -93,3 +93,14 @@ Added a database schema migration for the new `refund_required_cents` column to 
 AI tool used: ChatGPT (OpenAI) for understanding the reported issues, discussing implementation choices, debugging, and reviewing test results.
 
 - `README.md` — Contains the assignment-provided instructions for session logs. It is not a conversation export.
+
+## Terminal commands and results
+
+- `python3 -m unittest -v` — All 13 tests passed.
+- `git status --short` — Checked working tree status.
+- `git log --oneline -9` — Reviewed commit history.
+- `grep -n "TODO" NOTES.md` — Checked for TODO placeholders.
+- `ls -lh session_logs` — Checked saved session log files.
+- `git add` and `git commit` — Saved assessment changes.
+- `zip -r tillpoint_assignment.zip ...` — Created submission ZIP.
+- `unzip -l tillpoint_assignment.zip` — Checked ZIP contents.
