@@ -43,6 +43,14 @@ class OrderDeskTest(unittest.TestCase):
             {"id": "evt_2", "type": "payment.succeeded", "order_id": order["id"], "amount_cents": 5000})
         self.app.orders.cancel(order["id"])
         self.assertEqual(self.app.catalog.get_product("TEE").stock, 3)
+    def test_cancel_pending_order_restocks(self):
+        order = self.app.orders.create("ana", [("TEE", 2)])
+        self.assertEqual(self.app.catalog.get_product("TEE").stock, 1)
+
+        self.app.orders.cancel(order["id"])
+
+        self.assertEqual(self.app.catalog.get_product("TEE").stock, 3)
+        self.assertEqual(self.app.orders.get(order["id"])["status"], "cancelled")
 
     def test_daily_sales(self):
         order = self.app.orders.create("ana", [("MUG", 1)])
@@ -71,4 +79,5 @@ class OrderDeskTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 

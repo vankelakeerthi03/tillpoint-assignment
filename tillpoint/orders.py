@@ -53,7 +53,8 @@ class Orders:
             raise OrderError("a shipped order cannot be cancelled")
         self.conn.execute("BEGIN IMMEDIATE")
         try:
-            if order["status"] == "paid":
+            if order["status"] in ("pending", "paid"):
+            
                 for item in order["items"]:
                     self.catalog.release(item["sku"], item["qty"])
             if order["coupon"]:
