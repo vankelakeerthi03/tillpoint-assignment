@@ -53,6 +53,17 @@ def connect(path=":memory:"):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(payments)")
+    }
+
+    if "refund_required_cents" not in columns:
+        conn.execute(
+            "ALTER TABLE payments ADD COLUMN refund_required_cents "
+            "INTEGER NOT NULL DEFAULT 0"
+        )
+
     return conn
 
 
